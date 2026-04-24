@@ -1,0 +1,7 @@
+{
+  "node_count": 30,
+  "edge_count": 246,
+  "is_connected": true,
+  "single_points_of_failure": [],
+  "average_hop_count": 1.439
+}

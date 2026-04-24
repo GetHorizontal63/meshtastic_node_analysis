@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wood County Mesh Network Story</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <style>
+    :root {
+      --bg: #1E1E1E;
+      --surface: #2A2A2A;
+      --surface-hi: #333333;
+      --primary: #FFC72C;
+      --primary-dim: #B38A1F;
+      --primary-muted: #4D3A0E;
+      --text: #F5F5F5;
+      --text-muted: #A0A0A0;
+      --border: #3D3D3D;
+      --coverage: rgba(76, 175, 80, 0.15);
+      --warn: #FFC107;
+      --danger: #E53935;
+      --font-body: 'Inter', 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: var(--font-body);
+      background:
+        radial-gradient(circle at 12% 15%, #452010 0%, transparent 35%),
+        radial-gradient(circle at 88% 88%, #342218 0%, transparent 35%),
+        linear-gradient(165deg, #1b1b1b 0%, #1e1e1e 30%, #232323 100%);
+      line-height: 1.5;
+    }
+
+    .hero {
+      min-height: 100vh;
+      min-height: 100svh;
+      position: relative;
+      z-index: 3;
+      display: grid;
+      place-items: end start;
+      padding: 10vh 6vw 8vh;
+      background:
+        radial-gradient(circle at 14% 16%, rgba(38, 62, 82, 0.42) 0%, transparent 38%),
+        radial-gradient(circle at 86% 84%, rgba(27, 44, 58, 0.36) 0%, transparent 40%),
+        linear-gradient(160deg, #171b20 0%, #1c232b 45%, #202830 100%);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 4.5rem);
+      line-height: 1.12;
+      letter-spacing: -0.02em;
+      max-width: 20ch;
+      word-spacing: 0.05em;
+    }
+
+    .hero p {
+      margin-top: 1rem;
+      max-width: 62ch;
+      color: var(--text-muted);
+      font-size: clamp(1rem, 1.4vw, 1.2rem);
+    }
+
+    .scroll-cue {
+      position: absolute;
+      left: 50%;
+      bottom: 1.25rem;
+      transform: translateX(-50%);
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.72rem;
+      transition: color 160ms ease, transform 160ms ease;
+    }
+
+    .scroll-cue:hover {
+      color: var(--text);
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    .scroll-cue-arrow {
+      width: 12px;
+      height: 12px;
+      border-right: 2px solid var(--primary);
+      border-bottom: 2px solid var(--primary);
+      transform: rotate(45deg);
+      animation: cue-bounce 1.3s ease-in-out infinite;
+    }
+
+    @keyframes cue-bounce {
+      0%,
+      100% { transform: rotate(45deg) translateY(0); }
+      50% { transform: rotate(45deg) translateY(4px); }
+    }
+
+    .accent {
+      color: var(--primary);
+      font-weight: 800;
+    }
+
+    .story {
+      display: grid;
+      grid-template-columns: minmax(280px, 42%) 1fr;
+      gap: 1px;
+      background: transparent;
+    }
+
+    .left {
+      background: transparent;
+      padding: 0;
+      position: relative;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .left .step {
+      pointer-events: auto;
+    }
+
+    .right {
+      background: transparent;
+      position: relative;
+    }
+
+    .map-shell {
+      position: fixed;
+      top: 0;
+      left: 135px;
+      right: 0;
+      bottom: 0;
+      height: 100vh;
+      width: calc(100vw - 135px);
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    #map {
+      height: 100%;
+      width: 100%;
+      filter: saturate(0.95) contrast(1.05);
+    }
+
+    .metrics {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 1000;
+      background: rgba(42, 42, 42, 0.9);
+      border: 1px solid var(--border);
+      padding: 0.75rem 0.9rem;
+      min-width: 220px;
+      backdrop-filter: blur(6px);
+    }
+
+    .metrics h3 {
+      margin: 0 0 0.35rem;
+      font-size: 0.86rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      font-size: 0.92rem;
+      font-family: var(--font-mono);
+      margin: 0.3rem 0;
+    }
+
+    .metric-row strong {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .step {
+      min-height: 86vh;
+      padding: 14vh 6vw;
+      display: grid;
+      align-content: center;
+      background: rgba(20, 20, 20, 0.72);
+      border-left: 2px solid transparent;
+      backdrop-filter: blur(2px);
+      transition: background 200ms ease, border-color 200ms ease;
+    }
+
+    .step .eyebrow {
+      font-size: 0.78rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.55rem;
+    }
+
+    .step h2 {
+      font-size: clamp(1.4rem, 2.5vw, 2.4rem);
+      margin: 0 0 0.75rem;
+      line-height: 1.08;
+    }
+
+    .step p {
+      margin: 0;
+      color: #d5d5d5;
+      max-width: 42ch;
+    }
+
+    .step.active {
+      background: rgba(20, 20, 20, 0.82);
+      border-left: 2px solid var(--primary);
+    }
+
+    .legend {
+      position: fixed;
+      right: 1rem;
+      bottom: calc(1rem + 10px);
+      z-index: 1000;
+      background: rgba(42, 42, 42, 0.9);
+      border: 1px solid var(--border);
+      padding: 0.75rem 0.9rem;
+      min-width: 220px;
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--text);
+      backdrop-filter: blur(6px);
+    }
+
+    .legend h4 {
+      margin: 0 0 0.35rem;
+      font-size: 0.86rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      font-family: inherit;
+    }
+
+    .legend-group + .legend-group { margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px dashed var(--border); }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin: 0.2rem 0;
+      line-height: 1.25;
+    }
+
+    .swatch {
+      flex-shrink: 0;
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    .swatch.dot { border-radius: 50%; }
+    .swatch.ring { border-width: 2px; background: transparent !important; }
+    .swatch.line { height: 3px; border-radius: 0; border: 0; }
+    .swatch.dashed { height: 0; border-top: 2px dashed; background: transparent !important; }
+
+    .step.colophon {
+      background: rgba(20, 20, 20, 0.88);
+      border-left: 2px solid var(--primary-dim);
+      min-height: 0;
+      padding: 8vh 6vw 8vh;
+    }
+    .step.colophon h2 { margin-bottom: 0.6rem; }
+    .step.colophon p { max-width: 48ch; color: #d5d5d5; }
+    .colophon-grid {
+      margin: 1.25rem 0 0;
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      column-gap: 1.1rem;
+      row-gap: 0.55rem;
+      font-size: 0.82rem;
+      font-family: var(--font-mono);
+    }
+    .colophon-grid dt {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.72rem;
+      padding-top: 0.15rem;
+    }
+    .colophon-grid dd {
+      margin: 0;
+      color: var(--text);
+    }
+    .colophon-grid dd a {
+      color: var(--primary);
+      text-decoration: none;
+      border-bottom: 1px dotted var(--primary-dim);
+    }
+    .colophon-grid dd a:hover { color: #fff; border-bottom-color: var(--primary); }
+    .colophon-grid code {
+      font-family: inherit;
+      color: var(--text);
+    }
+
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 6vw 4rem;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    .footer code {
+      color: var(--text);
+      font-family: var(--font-mono);
+    }
+
+    @media (max-width: 980px) {
+      .story { grid-template-columns: 1fr; }
+      .map-shell {
+        position: sticky;
+        top: 0;
+        height: 58vh;
+        border-left: 0;
+        border-top: 1px solid var(--border);
+      }
+      .left { padding-bottom: 12vh; }
+      .step { min-height: 62vh; padding: 10vh 7vw; }
+      .scroll-cue {
+        bottom: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <h1><span class="accent">Designing</span> a Minimal Resilient Mesh for Wood County, WV</h1>
+      <p>
+        A data story about emergency readiness, difficult terrain, and network resilience. Scroll to see how elevation,
+        line-of-sight, and population density shape a practical Meshtastic deployment plan in Appalachia.
+      </p>
+    </div>
+    <a class="scroll-cue" href="#scrolly" aria-label="Scroll to story content">
+      <span>Scroll</span>
+      <span class="scroll-cue-arrow" aria-hidden="true"></span>
+    </a>
+  </header>
+
+  <main class="story">
+    <section class="left" id="scrolly">
+      <article class="step active" data-step="1">
+        <div class="eyebrow">Section 1</div>
+        <h2>The Problem</h2>
+        <p>When commercial cellular and the county's public-safety trunked radio fail simultaneously - flood, ice storm, prolonged grid outage - Wood County has no fallback messaging plane. The goal: a volunteer-deployable 915&nbsp;MHz LoRa mesh that carries short text and telemetry between fire stations, EOCs, hospitals, and amateur operators independent of any external infrastructure.</p>
+      </article>
+
+      <article class="step" data-step="2">
+        <div class="eyebrow">Section 2</div>
+        <h2>Why Terrain Decides Everything</h2>
+        <p>At 915&nbsp;MHz, LoRa is effectively a line-of-sight medium. Wood County ranges from the 180&nbsp;m Ohio River floodplain up to 400&nbsp;m ridges, with deeply incised tributaries. A node in a valley sees nothing; a node on a ridge sees tens of kilometers. Siting is the only free variable that matters; power, antenna, and firmware are commodity.</p>
+      </article>
+
+      <article class="step" data-step="3">
+        <div class="eyebrow">Section 3</div>
+        <h2>What We're Covering</h2>
+        <p>Coverage is scored against Microsoft Building Footprints - 46,406 structures in the county. That proxies households and workplaces far better than census tracts. A site's value is the count of buildings within its 14.3&nbsp;km radio horizon, weighted 85% buildings / 15% topographic prominence.</p>
+      </article>
+
+      <article class="step" data-step="4">
+        <div class="eyebrow">Section 4</div>
+        <h2>Link Budget</h2>
+        <p>Friis at 915&nbsp;MHz with a Meshtastic-class radio: <code>Pt</code>&nbsp;20&nbsp;dBm, <code>Gt</code>&nbsp;5&nbsp;dBi, <code>Gr</code>&nbsp;2&nbsp;dBi, <code>Pr&nbsp;sens</code>&nbsp;&minus;137&nbsp;dBm, 10&nbsp;dB fade margin. That closes a clear-air link to ~200&nbsp;km - but the Earth curves and the terrain doesn't care about your math.</p>
+      </article>
+
+      <article class="step" data-step="5">
+        <div class="eyebrow">Section 5</div>
+        <h2>Fresnel &amp; the 4/3 Earth</h2>
+        <p>Every candidate pair is traced along a DEM-sampled great-circle path with 4/3-Earth curvature correction. A link only counts if 60% of the first Fresnel zone is clear along the <em>entire</em> profile - endpoint-only LoS checks overestimate connectivity by 2-3x. This is the step that kills most naive placements.</p>
+      </article>
+
+      <article class="step" data-step="6">
+        <div class="eyebrow">Section 6</div>
+        <h2>Site Selection</h2>
+        <p>DEM local-maxima extraction (5x5 kernel, >150&nbsp;m floor, 50&nbsp;m minimum separation) yields 317 true ridge peaks. Those are scored, and a greedy set-cover adds nodes one at a time: round 1 picks maximum initial visibility, subsequent rounds maximize <em>new</em> buildings covered while requiring a clear LoS link back to the existing mesh and a 2.5&nbsp;km spacing floor.</p>
+      </article>
+
+      <article class="step" data-step="7">
+        <div class="eyebrow">Section 7</div>
+        <h2>Coverage</h2>
+        <p>Thirty nodes at 12&nbsp;m AGL produce a combined viewshed of ~547&nbsp;km^2 (1,440-ray per-node sampling with 4/3-Earth). That reaches 86.7% of Wood County buildings under set-cover and 82.7% under strict per-node LoS - a realistic floor, since real antennas gain from rooftop masts and the 60% Fresnel bar is conservative.</p>
+      </article>
+
+      <article class="step" data-step="8">
+        <div class="eyebrow">Section 8</div>
+        <h2>The Mesh Graph</h2>
+        <p>Each node links to its four nearest LoS-verified neighbors. 246 pairs close cleanly; paths that fail Fresnel are drawn red. The result is a non-planar graph with triangulated redundancy - any single node or single link failure still leaves a connected subgraph covering the majority of demand.</p>
+      </article>
+
+      <article class="step" data-step="9">
+        <div class="eyebrow">Section 9</div>
+        <h2>Gateways &amp; Application</h2>
+        <p>Three nodes with the highest direct building LoS are designated <strong>gateways</strong> - points where a volunteer supplies internet backhaul (MQTT bridge, Starlink, residential fiber) so the mesh can reach outside Wood County when <em>some</em> infrastructure survives. Target applications: EOC&rarr;fire-station status pings, SAR team position reports, shelter capacity updates, amateur-radio position beacons.</p>
+      </article>
+
+      <article class="step" data-step="10">
+        <div class="eyebrow">Section 10</div>
+        <h2>Deployment</h2>
+        <p>Roughly $150 per node in hardware (Heltec/RAK LoRa32, 5.8&nbsp;dBi collinear, 12&nbsp;m push-up or existing tower). Power draw under 1&nbsp;W allows solar + LiFePO&#8324; at every site. Stage in three phases: gateways first (uplink proves out), Parkersburg-Vienna corridor relays second, rural ridges last. The plan converges on resilient county-wide text messaging for under $5,000 in hardware.</p>
+      </article>
+
+      <article class="step colophon" data-step="10">
+        <div class="eyebrow">About &amp; Contact</div>
+        <h2>Get Involved</h2>
+        <p>
+          This is an independent planning study, not an official Wood County or WV EMA project. The pipeline is open-source Python (GeoPandas, rasterio, NetworkX); all inputs are public.
+        </p>
+        <dl class="colophon-grid">
+          <dt>Contact</dt>
+          <dd><a href="mailto:gabriel.cabrera.business@gmail.com">mesh@example.org</a></dd>
+          <dt>Source</dt>
+          <dd><a href="https://github.com" target="_blank" rel="noopener">github.com/…/wood-county-mesh</a></dd>
+           <dt>Technical Walkthrough</dt>
+           <dd><a href="docs/technical_walkthrough.html" target="_blank" rel="noopener">Pipeline & Analysis Details</a></dd>
+          <dt>Licensing</dt>
+          <dd>Code MIT &middot; Data under source licenses (USGS PD, OSM ODbL, MS Buildings ODbL, TIGER PD).</dd>
+          <dt>Data Sources</dt>
+          <dd>USGS 3DEP 10&nbsp;m DEM &middot; Microsoft Building Footprints &middot; US Census TIGER/Line &middot; OpenStreetMap &middot; FEMA NFHL</dd>
+          <dt>Built With</dt>
+          <dd><code>Python</code> &middot; <code>GeoPandas</code> &middot; <code>rasterio</code> &middot; <code>NetworkX</code> &middot; <code>Leaflet</code> &middot; <code>D3</code></dd>
+        </dl>
+      </article>
+    </section>
+
+    <aside class="right">
+      <div class="map-shell">
+        <div id="map" aria-label="Wood County Mesh Map"></div>
+        <div class="metrics">
+          <h3>Live Metrics</h3>
+          <div class="metric-row"><span>Nodes</span><strong id="m-nodes">0</strong></div>
+          <div class="metric-row"><span>Clear links</span><strong id="m-links">0</strong></div>
+          <div class="metric-row"><span>Blocked by terrain</span><strong id="m-blocked">0</strong></div>
+          <div class="metric-row"><span>Buildings in LoS</span><strong id="m-pop">0%</strong></div>
+          <div class="metric-row"><span>SPoF</span><strong id="m-spof">0</strong></div>
+        </div>
+        <div class="legend">
+          <div class="legend-group">
+            <h4>Nodes</h4>
+            <div class="legend-item"><span class="swatch dot" style="background:#FFC72C;border:2px solid #fff;width:16px;height:16px"></span> Gateway</div>
+            <div class="legend-item"><span class="swatch dot" style="background:#FFC72C"></span> Relay</div>
+          </div>
+          <div class="legend-group">
+            <h4>Critical Infrastructure</h4>
+            <div class="legend-item"><span class="swatch dot" style="background:#4FC3F7"></span> Hospital / fire / police</div>
+            <div class="legend-item"><span class="swatch dot" style="background:#AB47BC"></span> Tower / mast</div>
+          </div>
+          <div class="legend-group">
+            <h4>Links</h4>
+            <div class="legend-item"><span class="swatch dashed" style="border-color:#FFC72C;width:20px"></span> Clear line of sight</div>
+            <div class="legend-item"><span class="swatch dashed" style="border-color:#E53935;width:20px"></span> Terrain-blocked</div>
+          </div>
+          <div class="legend-group">
+            <h4>Coverage</h4>
+            <div class="legend-item"><span class="swatch" style="background:rgba(0,229,255,0.3);border-color:#00E5FF"></span> Combined viewshed</div>
+            <div class="legend-item"><span class="swatch" style="background:transparent;border-color:#F5F5F5;border-width:2px"></span> County boundary</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script>
+    const BUNDLE_URL = "data/processed/web_bundle.json";
+    const GRAPH_URL = "data/processed/network_graph.json";
+    const COVERAGE_URL = "data/processed/coverage_radii.geojson";
+    const BUILDING_SUMMARY_URL = "data/processed/building_coverage_summary.json";
+
+    const map = L.map("map", {
+      zoomControl: false,
+      preferCanvas: true,
+      zoomSnap: 0,
+      zoomDelta: 0.25,
+      // Kill every interaction that would steal scroll/pan from the narrative.
+      // The map is a *visual backdrop* for the scrollytelling; the reader
+      // should never accidentally pan or zoom it by scrolling.
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      dragging: false,
+      touchZoom: false,
+      keyboard: false,
+    }).setView([39.20, -81.55], 10);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
+    }).addTo(map);
+
+    const metricNodes = document.getElementById("m-nodes");
+    const metricLinks = document.getElementById("m-links");
+    const metricBlocked = document.getElementById("m-blocked");
+    const metricPop = document.getElementById("m-pop");
+    const metricSpof = document.getElementById("m-spof");
+
+    async function loadJSON(url) {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(url + " -> " + r.status);
+      return r.json();
+    }
+
+    (async function init() {
+      let bundle, graph, coverageFC, bldgSummary, hillshadeMeta;
+      try {
+        [bundle, graph, coverageFC, bldgSummary, hillshadeMeta] = await Promise.all([
+          loadJSON(BUNDLE_URL),
+          loadJSON(GRAPH_URL).catch(() => ({ single_points_of_failure: [], edge_count: 0, node_count: 0 })),
+          loadJSON(COVERAGE_URL).catch(() => null),
+          loadJSON(BUILDING_SUMMARY_URL).catch(() => ({ building_coverage_pct: 0, building_count_total: 0 })),
+          loadJSON("data/processed/hillshade.json").catch(() => null)
+        ]);
+      } catch (err) {
+        document.getElementById("map").innerHTML =
+          '<div style="padding:2rem;color:#F5F5F5;font-family:Inter,sans-serif">' +
+          '<strong>Dataset not found.</strong><br>Run <code>python -m pipeline.export</code> to generate ' +
+          '<code>data/processed/web_bundle.json</code>, then reload.</div>';
+        console.error(err);
+        return;
+      }
+
+      const BOUNDARY = bundle.boundary || { type: "FeatureCollection", features: [] };
+      const NODES = bundle.nodes || { type: "FeatureCollection", features: [] };
+      const CANDIDATES = bundle.candidates || { type: "FeatureCollection", features: [] };
+      const POOL = bundle.candidate_pool || { type: "FeatureCollection", features: [] };
+      const LINKS = bundle.links || { type: "FeatureCollection", features: [] };
+      const BLOCKED = bundle.blocked_links || { type: "FeatureCollection", features: [] };
+      const ROADS = bundle.roads || { type: "FeatureCollection", features: [] };
+      const POI = bundle.poi || { type: "FeatureCollection", features: [] };
+      const BUILDINGS = bundle.buildings || { type: "FeatureCollection", features: [] };
+      const FLOOD = bundle.flood || { type: "FeatureCollection", features: [] };
+      const COVERAGE = bundle.coverage_combined || coverageFC || bundle.coverage || { type: "FeatureCollection", features: [] };
+
+      const coveragePct = bldgSummary.building_coverage_pct != null
+        ? Math.round(bldgSummary.building_coverage_pct)
+        : 0;
+      const spofCount = (graph.single_points_of_failure || []).length;
+      const edgeCount = graph.edge_count || LINKS.features.length;
+      const nodeCount = graph.node_count || NODES.features.length;
+      const blockedCount = BLOCKED.features.length;
+
+      // Restrict displayed links to each node's 4 nearest neighbours. For every
+      // node we find the 4 shortest (by distance_km) outgoing edges across both
+      // LINKS (clear) and BLOCKED (blocked) sets. A link is kept if EITHER
+      // endpoint considers the other among its 4 nearest — so the render
+      // answers "what does this node talk to?" rather than showing the full
+      // N·(N-1)/2 pairwise mesh (435 edges at 30 nodes is unreadable).
+      function topKPerNode(features, k = 4) {
+        const byNode = new Map();
+        for (const f of features) {
+          const p = f.properties || {};
+          const d = p.distance_km;
+          if (d == null || !p.src || !p.dst) continue;
+          for (const node of [p.src, p.dst]) {
+            if (!byNode.has(node)) byNode.set(node, []);
+            byNode.get(node).push({ src: p.src, dst: p.dst, d });
+          }
+        }
+        const keep = new Set();
+        for (const [, edges] of byNode) {
+          edges.sort((a, b) => a.d - b.d);
+          for (const e of edges.slice(0, k)) {
+            const key = [e.src, e.dst].sort().join("||");
+            keep.add(key);
+          }
+        }
+        return keep;
+      }
+      const allLinkFeatures = [...LINKS.features, ...BLOCKED.features];
+      const keepKeys = topKPerNode(allLinkFeatures, 4);
+      function filterToKept(fc) {
+        return {
+          type: "FeatureCollection",
+          features: (fc.features || []).filter((f) => {
+            const p = f.properties || {};
+            if (!p.src || !p.dst) return false;
+            return keepKeys.has([p.src, p.dst].sort().join("||"));
+          })
+        };
+      }
+      const LINKS_4 = filterToKept(LINKS);
+      const BLOCKED_4 = filterToKept(BLOCKED);
+      const visibleEdgeCount = LINKS_4.features.length;
+      const visibleBlockedCount = BLOCKED_4.features.length;
+
+      // Elevation -> color ramp for the full 800-point terrain pool.
+      const poolElevs = POOL.features.map(f => f.properties.elev_m).filter(v => v != null);
+      const elevMin = poolElevs.length ? Math.min(...poolElevs) : 0;
+      const elevMax = poolElevs.length ? Math.max(...poolElevs) : 1;
+      function elevColor(e) {
+        if (e == null) return "#555";
+        const t = Math.max(0, Math.min(1, (e - elevMin) / Math.max(elevMax - elevMin, 1e-6)));
+        // Dark -> primary orange -> bright yellow gradient.
+        const stops = [[30, 30, 30], [184, 74, 24], [234, 96, 32], [255, 193, 7]];
+        const idx = Math.min(stops.length - 2, Math.floor(t * (stops.length - 1)));
+        const local = t * (stops.length - 1) - idx;
+        const a = stops[idx], b = stops[idx + 1];
+        const r = Math.round(a[0] + (b[0] - a[0]) * local);
+        const g = Math.round(a[1] + (b[1] - a[1]) * local);
+        const bl = Math.round(a[2] + (b[2] - a[2]) * local);
+        return `rgb(${r},${g},${bl})`;
+      }
+
+      const layers = {
+        boundary: L.geoJSON(BOUNDARY, {
+          style: { color: "#F5F5F5", weight: 2, fill: false, opacity: 0.95 }
+        }),
+        roads: L.geoJSON(ROADS, {
+          style: { color: "#555", weight: 0.6, opacity: 0.55 }
+        }),
+        buildings: L.geoJSON(BUILDINGS, {
+          style: { color: "#FFC72C", weight: 0, fillColor: "#FFC72C", fillOpacity: 0.18 }
+        }),
+        flood: L.geoJSON(FLOOD, {
+          style: { color: "#4FC3F7", weight: 0.6, fillColor: "#4FC3F7", fillOpacity: 0.22 }
+        }),
+        candidates: L.geoJSON(CANDIDATES, {
+          pointToLayer: (_, latlng) => L.circleMarker(latlng, {
+            radius: 5,
+            color: "#ffffff",
+            weight: 1.2,
+            fillColor: "#B84A18",
+            fillOpacity: 0.85
+          })
+        }),
+        pool: L.geoJSON(POOL, {
+          pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+            radius: 2.6,
+            color: elevColor(f.properties.elev_m),
+            weight: 0,
+            fillColor: elevColor(f.properties.elev_m),
+            fillOpacity: 0.75
+          })
+        }),
+        nodes: L.geoJSON(NODES, {
+          pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+            radius: f.properties.role === "gateway" ? 8 : 6,
+            color: "#ffffff",
+            weight: 1.6,
+            fillColor: "#FFC72C",
+            fillOpacity: 0.95
+          })
+        }),
+        poi: L.geoJSON(POI, {
+          pointToLayer: (f, latlng) => {
+            const p = f.properties || {};
+            const amenity = (p.amenity || "").toLowerCase();
+            const manmade = (p.man_made || "").toLowerCase();
+            let color = "#AB47BC", kind = "Infrastructure";
+            if (amenity === "hospital" || amenity === "clinic") { color = "#4FC3F7"; kind = "Hospital/Clinic"; }
+            else if (amenity === "fire_station") { color = "#4FC3F7"; kind = "Fire Station"; }
+            else if (amenity === "police") { color = "#4FC3F7"; kind = "Police"; }
+            else if (manmade === "tower" || manmade === "mast" || manmade === "water_tower") {
+              color = "#AB47BC"; kind = "Tower/Mast";
+            }
+            const marker = L.circleMarker(latlng, {
+              radius: 5,
+              color: "#1E1E1E",
+              weight: 1.5,
+              fillColor: color,
+              fillOpacity: 0.95
+            });
+            const label = p.name ? `${kind} — ${p.name}` : kind;
+            marker.bindTooltip(label, { direction: "top", offset: [0, -6] });
+            return marker;
+          }
+        }),
+        links: L.geoJSON(LINKS_4, {
+          style: (f) => {
+            const m = f.properties.margin_db == null ? 10 : f.properties.margin_db;
+            return {
+              color: m >= 10 ? "#FFC72C" : m >= 3 ? "#FFE082" : "#E53935",
+              weight: 1.8,
+              opacity: 0.85,
+              dashArray: "4 4"
+            };
+          }
+        }),
+        blocked: L.geoJSON(BLOCKED_4, {
+          style: {
+            color: "#E53935",
+            weight: 1.8,
+            opacity: 0.95,
+            dashArray: "4 4"
+          }
+        }),
+        coverage: L.geoJSON(COVERAGE, {
+          style: { color: "#00E5FF", weight: 1.2, fillColor: "#00E5FF", fillOpacity: 0.18 }
+        })
+      };
+
+      // Hillshade overlay: color-shaded relief of the county DEM. Verifies that
+      // nodes sit on genuine high ground rather than arbitrary grid points.
+      if (hillshadeMeta && hillshadeMeta.bounds) {
+        layers.hillshade = L.imageOverlay(
+          "data/processed/hillshade.png",
+          hillshadeMeta.bounds,
+          { opacity: 0.75, interactive: false }
+        );
+      }
+
+      layers.boundary.addTo(map);
+      const bounds = layers.boundary.getBounds();
+      function fitWithNarrativeOffset() {
+        if (!bounds.isValid()) return;
+        const narrativeFrac = 0.34;
+        const narrativeWidth = Math.round(window.innerWidth * narrativeFrac);
+        // Breathing room around the county inside the visible map area.
+        const pad = Math.round(window.innerHeight * 0.06);
+        map.fitBounds(bounds, {
+          paddingTopLeft: [narrativeWidth + pad, pad],
+          paddingBottomRight: [pad, pad],
+          animate: false,
+        });
+      }
+      fitWithNarrativeOffset();
+      window.addEventListener("resize", fitWithNarrativeOffset);
+
+      function resetLayers() {
+        Object.values(layers).forEach((layer) => {
+          if (map.hasLayer(layer)) map.removeLayer(layer);
+        });
+        if (map.__nodeLayer) { map.removeLayer(map.__nodeLayer); map.__nodeLayer = null; }
+        layers.boundary.addTo(map);
+        metricNodes.textContent = "0";
+        metricLinks.textContent = "0";
+        metricBlocked.textContent = "0";
+        metricPop.textContent = "0%";
+        metricSpof.textContent = "0";
+      }
+
+      function activateStep(step) {
+        if (step >= 10) {
+          // On About/Contact (colophon) page, do absolutely nothing to the map.
+          // No layers are added, removed, or changed. The map remains as it was.
+          return;
+        }
+
+        // For all other steps, use normal reset/add logic
+        resetLayers();
+
+        // Hillshade is a constant background that proves the pipeline uses
+        // real terrain. Always shown under everything else.
+        if (layers.hillshade) {
+          layers.hillshade.addTo(map);
+          layers.hillshade.bringToBack();
+        }
+
+        if (step >= 2) {
+          layers.roads.addTo(map);
+          layers.pool.addTo(map);
+          if (FLOOD.features.length) layers.flood.addTo(map);
+        }
+        if (step >= 3) {
+          layers.buildings.addTo(map);
+        }
+        if (step >= 4) {
+          layers.poi.addTo(map);
+        }
+        if (step === 5) {
+          // Step 5 is the "evaluate candidates" narrative beat — show the
+          // shortlist so the reader sees the pool being scored.
+          layers.candidates.addTo(map);
+        }
+        if (step >= 6) {
+          // Hide the raw pool AND the unselected candidate shortlist so the
+          // only points on the map from here on are the actual chosen nodes.
+          if (map.hasLayer(layers.pool)) map.removeLayer(layers.pool);
+          if (map.hasLayer(layers.candidates)) map.removeLayer(layers.candidates);
+          // Dim the critical-infrastructure POI layer so the gateway/relay
+          // pins dominate visually. POI is still there for context but
+          // subordinate once the mesh topology is on screen.
+          if (map.hasLayer(layers.poi)) {
+            layers.poi.eachLayer((m) => m.setStyle({ fillOpacity: 0.35, opacity: 0.5 }));
+          }
+          // All chosen nodes render from step 6 onward. The gateways are
+          // visually distinct, so there is no point staggering the reveal.
+          const total = NODES.features.length;
+          const visibleCount = total;
+          const nodeSubset = {
+            type: "FeatureCollection",
+            features: NODES.features.slice(0, visibleCount)
+          };
+          map.__nodeLayer = L.geoJSON(nodeSubset, {
+            pointToLayer: (f, latlng) => {
+              const isGateway = f.properties.role === "gateway";
+              return L.circleMarker(latlng, {
+                radius: isGateway ? 10 : 5,
+                color: isGateway ? "#ffffff" : "#1E1E1E",
+                weight: isGateway ? 2.5 : 1,
+                fillColor: "#FFC72C",
+                fillOpacity: isGateway ? 1.0 : 0.9
+              });
+            }
+          }).addTo(map);
+          metricNodes.textContent = String(visibleCount);
+        }
+        if (step >= 7) {
+          layers.coverage.addTo(map);
+          metricPop.textContent = coveragePct + "%";
+        }
+        if (step >= 8) {
+          layers.blocked.addTo(map);
+          layers.links.addTo(map);
+          // Lines draw in the overlayPane along with circleMarkers; whichever
+          // is added last ends up on top. Re-add the node layer so the pins
+          // sit above the dashed link lines.
+          if (map.__nodeLayer) {
+            map.removeLayer(map.__nodeLayer);
+            map.__nodeLayer.addTo(map);
+          }
+          metricLinks.textContent = String(visibleEdgeCount);
+          metricBlocked.textContent = String(visibleBlockedCount);
+        }
+        if (step >= 9) {
+          metricSpof.textContent = String(spofCount);
+        }
+      }
+
+      const steps = Array.from(document.querySelectorAll(".step"));
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const stepEl = entry.target;
+          steps.forEach((s) => s.classList.remove("active"));
+          stepEl.classList.add("active");
+          activateStep(Number(stepEl.dataset.step));
+        });
+      }, { threshold: 0.55 });
+
+      steps.forEach((el) => io.observe(el));
+      activateStep(1);
+    })();
+  </script>
+</body>
+</html>
