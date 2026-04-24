@@ -2,7 +2,7 @@
 
 An open-source planning study for a minimal resilient Meshtastic LoRa mesh network covering Wood County, West Virginia. The project combines USGS terrain data, Microsoft Building Footprints, and a custom RF propagation pipeline to site 30 relay nodes that provide emergency text messaging coverage to 86.7% of county structures — independent of cellular, internet, or grid power.
 
-**[View the live data story →]([https://your-username.github.io/wood-county-mesh](https://gethorizontal63.github.io/meshtastic_node_analysis/))**
+**[View the live data story →]([https://gethorizontal63.github.io/meshtastic_node_analysis/])**
 
 ---
 
