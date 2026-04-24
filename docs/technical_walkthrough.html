@@ -78,9 +78,9 @@
     <h2>1. Data Sources</h2>
     <p>The pipeline uses five public or open-licensed datasets. No proprietary feeds or API keys are required for core operation.</p>
     <p><strong>USGS 3DEP 10m DEM</strong> is the primary elevation source, fetched via <code>py3dep</code> for the county bounding box and saved as a GeoTIFF in its native projected CRS. Every terrain operation in the pipeline runs against this single file.</p>
-    <p><strong>Microsoft Building Footprints</strong> (West Virginia, ~37 MB) provides ML-extracted building polygons with substantially better rural coverage than OSM. The file is pre-filtered to the county bounding box on download, then clipped to the county boundary polygon. Buildings with footprint area under 15 m² are dropped as micro-sheds. 46,406 structures survive. If the Microsoft dataset is unreachable, the pipeline falls back to OSM buildings automatically.</p>
+    <p><strong>Microsoft Building Footprints</strong> (West Virginia, ~37 MB) provides ML-extracted building polygons with substantially better rural coverage than OSM. The file is pre-filtered to the county bounding box on download, then clipped to the county boundary polygon. Buildings with footprint area under 15 m&#178; are dropped as micro-sheds. 46,406 structures survive. If the Microsoft dataset is unreachable, the pipeline falls back to OSM buildings automatically.</p>
     <p><strong>TIGER/Line Roads</strong> supply the road network for visual context; only primary, secondary, trunk, and motorway classes are retained in the web bundle to reduce payload.</p>
-    <p><strong>OpenStreetMap</strong> via <code>osmnx</code> provides critical infrastructure POIs — hospitals, clinics, fire stations, police, towers, masts, and water towers — as point geometries.</p>
+    <p><strong>OpenStreetMap</strong> via <code>osmnx</code> provides critical infrastructure POIs: hospitals, clinics, fire stations, police, towers, masts, and water towers, as point geometries.</p>
     <p><strong>FEMA NFHL</strong> flood zones for Wood County (DFIRM_ID prefix <code>54107</code>) are fetched from FEMA's ArcGIS REST API and used for visual context and site vulnerability assessment.</p>
     <p>All outputs use EPSG:4326. Distance and area calculations use EPSG:32617 (UTM Zone 17N). DEM operations use the DEM's native CRS with explicit reprojection at every boundary crossing.</p>
 
@@ -100,18 +100,18 @@ python -m pipeline.export</pre>
     <hr>
 
     <h2>3. Terrain Analysis &amp; Peak Extraction</h2>
-    <p>The goal of <code>analyze.py</code>'s <code>_build_and_score()</code> is to produce a geographically distributed pool of true local summits — not just the absolute highest points in the county. Sorting by absolute elevation and taking the top-N would cluster every candidate on the highest ridge system in the southeast, leaving the Parkersburg corridor and the river bluffs with no representation.</p>
+    <p>The goal of <code>analyze.py</code>'s <code>_build_and_score()</code> is to produce a geographically distributed pool of true local summits; not just the absolute highest points in the county. Sorting by absolute elevation and taking the top-N would cluster every candidate on the highest ridge system in the southeast, leaving the Parkersburg corridor and the river bluffs with no representation.</p>
 
     <h3>Local Maxima Detection</h3>
-    <p>The DEM is read as a 32-bit float array. A pixel is flagged as a local peak if it equals the maximum value within its 5x5 neighborhood (via <code>scipy.ndimage.maximum_filter</code>), lies inside the county boundary mask, and is above a 150 m elevation floor. The 150 m floor discards Ohio River floodplain pixels, which are never viable siting candidates. At 10 m DEM resolution a 5x5 window spans a 50 m radius — tight enough to capture every meaningful hummock, including the ~220 m bluffs overlooking downtown Parkersburg.</p>
+    <p>The DEM is read as a 32-bit float array. A pixel is flagged as a local peak if it equals the maximum value within its 5x5 neighborhood (via <code>scipy.ndimage.maximum_filter</code>), lies inside the county boundary mask, and is above a 150 m elevation floor. The 150 m floor discards Ohio River floodplain pixels, which are never viable siting candidates. At 10 m DEM resolution a 5x5 window spans a 50 m radius; tight enough to capture every meaningful hummock, including the ~220 m bluffs overlooking downtown Parkersburg.</p>
 <pre>neighborhood_max = maximum_filter(dem, size=5, mode="nearest")
 is_peak = (dem == neighborhood_max) &amp; poly_mask &amp; (dem &gt; 150)</pre>
 
     <h3>Stratified Geographic Spread</h3>
-    <p>The county's UTM bounding box is divided into an approximately 22x22 grid (<code>n_side = ceil(sqrt(n_peaks))</code>). Peaks are walked high-to-low and placed into their grid cell, subject to a 50 m minimum pairwise separation enforced within each cell and a per-cell cap to prevent any one cluster from consuming the budget. For <code>n_peaks=500</code> over Wood County's ~800 km² envelope, each cell is roughly 1.7 km wide — approximately one candidate per cell on average. If the stratified pass exceeds the target count, candidates are trimmed by round-robin across cells, preserving geographic spread while respecting the count limit.</p>
+    <p>The county's UTM bounding box is divided into an approximately 22x22 grid (<code>n_side = ceil(sqrt(n_peaks))</code>). Peaks are walked high-to-low and placed into their grid cell, subject to a 50 m minimum pairwise separation enforced within each cell and a per-cell cap to prevent any one cluster from consuming the budget. For <code>n_peaks=500</code> over Wood County's ~800 km&#178; envelope, each cell is roughly 1.7 km wide; approximately one candidate per cell on average. If the stratified pass exceeds the target count, candidates are trimmed by round-robin across cells, preserving geographic spread while respecting the count limit.</p>
 
     <h3>Local Prominence</h3>
-    <p>For each candidate, local prominence is the candidate's elevation minus the mean elevation of all other candidates within a 1,500 m radius. This rewards sites that genuinely dominate their immediate neighborhood. A low-elevation bluff that rises 60 m above everything nearby scores higher on prominence than a high-elevation shoulder that is merely one of many equally-tall points on a plateau. Prominence is used as a secondary scoring term — it does not drive selection directly, but breaks ties in favor of sites with real terrain dominance.</p>
+    <p>For each candidate, local prominence is the candidate's elevation minus the mean elevation of all other candidates within a 1,500 m radius. This rewards sites that genuinely dominate their immediate neighborhood. A low-elevation bluff that rises 60 m above everything nearby scores higher on prominence than a high-elevation shoulder that is merely one of many equally-tall points on a plateau. Prominence is used as a secondary scoring term; it does not drive selection directly, but breaks ties in favor of sites with real terrain dominance.</p>
 <pre>prominence[i] = elev[i] - float(np.nanmean(elev[neighbors_within_1500m]))</pre>
 
     <hr>
@@ -119,12 +119,12 @@ is_peak = (dem == neighborhood_max) &amp; poly_mask &amp; (dem &gt; 150)</pre>
     <h2>4. Site Scoring</h2>
     <p>Scoring proceeds in two stages. The first is a provisional terrain-only score used to order the initial pool before building data is available. The second overwrites it with actual building counts.</p>
 
-    <h3>Stage 1 — Provisional Terrain Score</h3>
+    <h3>Stage 1. Provisional Terrain Score</h3>
 <pre>score = elev_m x 0.4 + prominence_m x 3.0</pre>
     <p>The prominence coefficient is deliberately elevated relative to absolute elevation to prevent the southeastern ridge system from monopolizing the top of the ranking. A 240 m bluff with 80 m of local prominence outscores a 380 m ridge shoulder with 10 m of prominence.</p>
 
-    <h3>Stage 2 — Building Density Rescore</h3>
-    <p>After the pool is built, each candidate is rescored by the number of building centroids that fall within its radio horizon. A spatial bucketing optimization avoids computing a full 500 x 46,406 distance matrix: buildings are binned into 2 km grid cells, and each candidate only checks cells within <code>ceil(horizon / 2000) + 1</code> cells of its own — reducing the inner loop from ~23 million operations to a few thousand per candidate.</p>
+    <h3>Stage 2. Building Density Rescore</h3>
+    <p>After the pool is built, each candidate is rescored by the number of building centroids that fall within its radio horizon. A spatial bucketing optimization avoids computing a full 500 x 46,406 distance matrix: buildings are binned into 2 km grid cells, and each candidate only checks cells within <code>ceil(horizon / 2000) + 1</code> cells of its own; reducing the inner loop from ~23 million operations to a few thousand per candidate.</p>
     <p>Both factors are normalized to [0, 1] and combined:</p>
 <pre>score = (buildings_in_horizon / max_buildings) x 0.85
       + prominence_normalized x 0.15</pre>
@@ -159,7 +159,7 @@ max_loss   = Pt + Gt + Gr - Sens - Fade
 margin     = 154 - FSPL(d)</pre>
     <p>At SF12/BW125 the free-space budget of 154 dB closes at over 1,000 km on paper. That number is physically meaningless. The 4/3-Earth radio horizon bounds the practical range far sooner. For a 12 m mast:</p>
 <pre>d_horizon = sqrt(2 x (4/3) x 6,371,000 x 12) ~= 14,300 m</pre>
-    <p>Node-to-node links use 12 m AGL at both ends, giving a mutual horizon of approximately 28.6 km maximum before Earth curvature becomes a hard obstacle. Candidate link evaluation is gated at <code>MAX_LINK_KM = 40</code> — pairs beyond 40 km are skipped without a DEM profile check. At 30 nodes the pairwise combination count is 435; most pairs are well under 40 km within a county-scale deployment.</p>
+    <p>Node-to-node links use 12 m AGL at both ends, giving a mutual horizon of approximately 28.6 km maximum before Earth curvature becomes a hard obstacle. Candidate link evaluation is gated at <code>MAX_LINK_KM = 40</code>; pairs beyond 40 km are skipped without a DEM profile check. At 30 nodes the pairwise combination count is 435; most pairs are well under 40 km within a county-scale deployment.</p>
 
     <hr>
 
@@ -174,10 +174,10 @@ margin     = 154 - FSPL(d)</pre>
     <h3>First Fresnel Zone Clearance</h3>
     <p>The first Fresnel zone is an ellipsoid around the direct LoS path. For reliable propagation, at least 60% of the first Fresnel radius must be clear at every point. The radius at a point d1 from the transmitter and d2 from the receiver is:</p>
 <pre>r1(d1, d2) = sqrt(lambda x d1 x d2 / (d1 + d2))</pre>
-    <p>At 915 MHz, lambda = 0.327 m. At the midpoint of a 10 km link r1 ~= 28 m. A 60% clearance requirement demands the LoS path sit at least 17 m above any obstacle at that midpoint — substantially more than an endpoint-only check reveals. The required clearance altitude at each sample is then:</p>
+    <p>At 915 MHz, lambda = 0.327 m. At the midpoint of a 10 km link r1 ~= 28 m. A 60% clearance requirement demands the LoS path sit at least 17 m above any obstacle at that midpoint; substantially more than an endpoint-only check reveals. The required clearance altitude at each sample is then:</p>
 <pre>required  = ground_elev + bulge(d1) + 0.6 x r1(d1, d2)
 clearance = los_altitude - required</pre>
-    <p>A link is clear if <code>clearance.min() &gt;= 0</code> across all interior samples (endpoints excluded). NaN values in the profile — pixels outside the DEM raster extent — are filled by linear interpolation between valid neighbors. An all-NaN profile is treated as blocked.</p>
+    <p>A link is clear if <code>clearance.min() &gt;= 0</code> across all interior samples (endpoints excluded). NaN values in the profile; pixels outside the DEM raster extent; are filled by linear interpolation between valid neighbors. An all-NaN profile is treated as blocked.</p>
 
     <h3>Profile Sampling Depth</h3>
     <p>Node-to-node final links (<code>rf_model.py</code>) use 200 DEM samples per path. The building pre-screening in <code>select.py</code> uses 20 samples per building path, batched across all in-range buildings in a single <code>sample_gen</code> call, and 60 samples for inter-candidate connectivity checks. The coarser grids are acceptable for pre-screening but would not be used for final link validation.</p>
@@ -188,12 +188,12 @@ clearance = los_altitude - required</pre>
     <p><code>select.py</code> frames node placement as a weighted set-cover problem: the universe is the set of all building centroids in the county; each candidate site covers the subset of buildings reachable with clear LoS. The goal is to cover the most buildings with the fewest nodes, subject to mesh connectivity and geographic spacing constraints.</p>
 
     <h3>Visibility Matrix Construction</h3>
-    <p>Before the greedy loop runs, the full N_candidates x N_buildings boolean visibility matrix is computed. For each candidate, buildings beyond the 14,300 m radio horizon are masked out immediately with a vectorized distance check — no DEM work needed for them. For remaining in-range buildings, all profile coordinates are computed at once and passed to a single <code>sample_gen</code> call, reading the DEM in one pass to avoid repeated I/O overhead. The Fresnel + bulge clearance check then runs over the returned elevation array. The result is a 200 x 46,406 boolean matrix held in memory. A separate N_candidates x N_candidates LoS matrix is built simultaneously using 60-sample profiles for each candidate pair.</p>
+    <p>Before the greedy loop runs, the full N_candidates x N_buildings boolean visibility matrix is computed. For each candidate, buildings beyond the 14,300 m radio horizon are masked out immediately with a vectorized distance check; no DEM work needed for them. For remaining in-range buildings, all profile coordinates are computed at once and passed to a single <code>sample_gen</code> call, reading the DEM in one pass to avoid repeated I/O overhead. The Fresnel + bulge clearance check then runs over the returned elevation array. The result is a 200 x 46,406 boolean matrix held in memory. A separate N_candidates x N_candidates LoS matrix is built simultaneously using 60-sample profiles for each candidate pair.</p>
 
     <h3>Greedy Selection Loop</h3>
-    <p>Round 1 selects the candidate with the highest raw building visibility count. This becomes the gateway anchor — the first node in the mesh. Subsequent rounds apply three constraints before evaluating candidates:</p>
-    <p><strong>Connectivity constraint.</strong> A candidate may only be selected if at least one already-chosen node has a clear LoS path to it, verified via the pre-computed inter-candidate LoS matrix. This ensures the mesh remains a connected graph after every addition — a node that can't talk to any existing node is useless regardless of how many buildings it can see.</p>
-    <p><strong>Spacing constraint.</strong> A candidate must be at least 2,500 m from every already-chosen node in UTM distance. Without this, greedy selection piles nodes on top of the densest building cluster — the Parkersburg-Vienna corridor — and leaves rural ridges uncovered. The constraint forces geographic spread.</p>
+    <p>Round 1 selects the candidate with the highest raw building visibility count. This becomes the gateway anchor; the first node in the mesh. Subsequent rounds apply three constraints before evaluating candidates:</p>
+    <p><strong>Connectivity constraint.</strong> A candidate may only be selected if at least one already-chosen node has a clear LoS path to it, verified via the pre-computed inter-candidate LoS matrix. This ensures the mesh remains a connected graph after every addition. A node that cannot talk to any existing node is useless regardless of how many buildings it can see.</p>
+    <p><strong>Spacing constraint.</strong> A candidate must be at least 2,500 m from every already-chosen node in UTM distance. Without this, greedy selection piles nodes on top of the densest building cluster; the Parkersburg-Vienna corridor; and leaves rural ridges uncovered. The constraint forces geographic spread.</p>
     <p><strong>Marginal gain maximization.</strong> Among candidates satisfying both constraints, the one that adds the most previously uncovered buildings is selected. <code>covered</code> is a running boolean mask over all buildings; marginal gain is <code>(visibility[candidate] &amp; ~covered).sum()</code>.</p>
 <pre>connected_mask = np.any(cand_los[chosen], axis=0)  # sees any chosen node
 spacing_mask   = min_dist_to_chosen &gt;= 2500         # 2.5 km floor
@@ -204,35 +204,35 @@ covered |= visibility[best]</pre>
     <p>If no spaced+connected candidate adds new buildings, the loop falls back to the most-visible connected candidate to extend mesh reach even if marginal gain is zero. If no connected candidate exists at all, spacing is relaxed and the isolated pick is flagged in the output for review.</p>
 
     <h3>Gateway Designation</h3>
-    <p>After all 30 nodes are selected, the three nodes with the highest raw building LoS count — not marginal gain, but total raw visibility — are designated gateways. These are the best candidates for internet backhaul connections because they have the most direct reach to population. This designation is a post-hoc label applied to an already topology-aware placement; the mesh connectivity does not depend on which nodes are gateways.</p>
+    <p>After all 30 nodes are selected, the three nodes with the highest raw building LoS count; not marginal gain, but total raw visibility; are designated gateways. These are the best candidates for internet backhaul connections because they have the most direct reach to population. This designation is a post-hoc label applied to an already topology-aware placement; the mesh connectivity does not depend on which nodes are gateways.</p>
 
     <hr>
 
     <h2>8. Viewshed &amp; Coverage Mapping</h2>
     <p>After node placements are finalized, <code>rf_model.py</code> constructs a viewshed polygon for each node by shooting 1,440 radial rays (0.25 degree angular resolution) outward and finding the furthest point along each bearing that still satisfies 60% first Fresnel clearance to a 4 m rooftop receiver. The radial search walks outward in 150 m steps, sampling 40 DEM points per profile at each test distance, until clearance fails or the radio horizon is reached.</p>
-    <p>The 1,440 polygon vertices per node are stitched into a coverage polygon and saved to <code>coverage_radii.geojson</code>. The union of all 30 viewsheds is dissolved into a single combined footprint, then cleaned with a 150 m buffer-out / buffer-in operation to fill slivers between adjacent viewsheds, followed by 80 m simplification to remove vertex-count jitter from the ray-sampling boundary. The result — <code>coverage_combined.geojson</code> — is what renders as the cyan overlay on the map.</p>
+    <p>The 1,440 polygon vertices per node are stitched into a coverage polygon and saved to <code>coverage_radii.geojson</code>. The union of all 30 viewsheds is dissolved into a single combined footprint, then cleaned with a 150 m buffer-out / buffer-in operation to fill slivers between adjacent viewsheds, followed by 80 m simplification to remove vertex-count jitter from the ray-sampling boundary. The result; <code>coverage_combined.geojson</code>; is what renders as the cyan overlay on the map.</p>
 
     <h3>Building Coverage Count</h3>
-    <p>Coverage percentage is not derived from the viewshed polygon area. It is computed by testing each of the 46,406 building centroids for actual LoS against every node individually, using the same Fresnel + bulge check used in selection. A building is counted as covered if at least one node has a clear LoS path to its centroid. Buildings are processed in chunks of 512 to keep memory flat; all profiles for a chunk are sampled in a single <code>sample_gen</code> call. The final result — 86.7% of buildings with clear LoS to at least one node — is written to <code>building_coverage_summary.json</code> and displayed in the map's live metrics panel.</p>
+    <p>Coverage percentage is not derived from the viewshed polygon area. It is computed by testing each of the 46,406 building centroids for actual LoS against every node individually, using the same Fresnel + bulge check used in selection. A building is counted as covered if at least one node has a clear LoS path to its centroid. Buildings are processed in chunks of 512 to keep memory flat; all profiles for a chunk are sampled in a single <code>sample_gen</code> call. The final result; 86.7% of buildings with clear LoS to at least one node; is written to <code>building_coverage_summary.json</code> and displayed in the map's live metrics panel.</p>
 
     <hr>
 
     <h2>9. Network Graph &amp; Redundancy</h2>
     <p><code>redundancy.py</code> builds a <code>networkx.Graph</code> from the selected nodes and clear LoS links, then analyzes it for structural weaknesses.</p>
-    <p><strong>Single points of failure (SPoF)</strong> are identified by iteratively removing each node and testing whether the remaining graph is still connected. Any node whose removal disconnects the graph is a SPoF. The count is displayed in the map metrics panel. A well-designed mesh minimizes SPoFs through triangulated redundancy — every node should have at least two independent paths to the rest of the mesh.</p>
+    <p><strong>Single points of failure (SPoF)</strong> are identified by iteratively removing each node and testing whether the remaining graph is still connected. Any node whose removal disconnects the graph is a SPoF. The count is displayed in the map metrics panel. A well-designed mesh minimizes SPoFs through triangulated redundancy; every node should have at least two independent paths to the rest of the mesh.</p>
     <p><strong>Average hop count</strong> is computed from all-pairs shortest path lengths and indicates how many relay jumps a message must traverse on average between any two nodes in the network.</p>
 <pre>for node in list(g.nodes):
     h = g.copy()
     h.remove_node(node)
     if not nx.is_connected(h):
         single_points.append(node)</pre>
-    <p>The network graph metadata — node count, edge count, connectivity, SPoF list, average hop count — is written to <code>network_graph.json</code> and consumed by both the map frontend and any downstream analysis.</p>
+    <p>The network graph metadata; node count, edge count, connectivity, SPoF list, average hop count; is written to <code>network_graph.json</code> and consumed by both the map frontend and any downstream analysis.</p>
 
     <hr>
 
     <h2>10. Visualization &amp; Export</h2>
     <p><code>export.py</code> assembles all processed GeoJSON layers into a single <code>web_bundle.json</code> for the frontend. All layers are simplified with a 0.0005-degree tolerance via <code>shapely.simplify</code> to reduce file size, except the building footprints which are passed through unsimplified so individual structures render correctly.</p>
-    <p>The frontend uses Leaflet for tile rendering and GeoJSON layer management, and D3.js for data joins. The map is intentionally non-interactive — scroll wheel zoom, drag, and double-click zoom are all disabled — because it serves as a scrollytelling backdrop, not an exploratory tool. Map state is driven entirely by an <code>IntersectionObserver</code> watching the narrative steps. As each step scrolls into view at a 55% intersection threshold, <code>activateStep()</code> removes all current layers, re-adds the appropriate subset for that step, and updates the live metrics panel. The colophon step (<code>data-step="10"</code>) returns early from <code>activateStep</code> without touching the map, preserving whatever state step 9 left behind.</p>
+    <p>The frontend uses Leaflet for tile rendering and GeoJSON layer management, and D3.js for data joins. The map is intentionally non-interactive; scroll wheel zoom, drag, and double-click zoom are all disabled; because it serves as a scrollytelling backdrop, not an exploratory tool. Map state is driven entirely by an <code>IntersectionObserver</code> watching the narrative steps. As each step scrolls into view at a 55% intersection threshold, <code>activateStep()</code> removes all current layers, re-adds the appropriate subset for that step, and updates the live metrics panel. The colophon step (<code>data-step="10"</code>) returns early from <code>activateStep</code> without touching the map, preserving whatever state step 9 left behind.</p>
 
     <a class="back-link-bottom" href="../index.html">&#8592; Back to Story</a>
   </div>
